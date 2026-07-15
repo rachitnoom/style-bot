@@ -29,6 +29,7 @@ class Settings(commands.Cog):
             "Automod: `/automod toggle`, `/automod addword`, `/automod anti_invite`\n"
             "Custom commands: `/customcommand add`, `/customcommand list`\n"
             "Reaction roles: `/reactionrole add`\n"
+            "Queue: `/queue panel`, `/queue setdisplay`, `/queue reset`\n"
             "Settings: `/settings logchannel`",
         )
         await ctx.respond(embed=embed, ephemeral=True)

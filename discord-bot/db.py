@@ -286,3 +286,82 @@ async def clear_warnings(guild_id: int, user_id: int) -> None:
             guild_id,
             user_id,
         )
+
+
+# ---------------------------------------------------------------------------
+# queue_tickets
+# ---------------------------------------------------------------------------
+
+QUEUE_MIN = 1
+QUEUE_MAX = 100
+
+
+async def get_user_ticket(guild_id: int, user_id: int) -> Optional[asyncpg.Record]:
+    async with pool().acquire() as conn:
+        return await conn.fetchrow(
+            "SELECT * FROM queue_tickets WHERE guild_id = $1 AND user_id = $2",
+            guild_id,
+            user_id,
+        )
+
+
+async def claim_next_ticket(guild_id: int, user_id: int, display_name: str) -> Optional[int]:
+    """Assign the smallest free number in [QUEUE_MIN, QUEUE_MAX] to this user.
+
+    Returns the assigned number, or None if the queue is full.
+    Returns the user's existing number without creating a duplicate if they already hold one.
+    """
+    async with pool().acquire() as conn:
+        async with conn.transaction():
+            existing = await conn.fetchrow(
+                "SELECT number FROM queue_tickets WHERE guild_id = $1 AND user_id = $2",
+                guild_id,
+                user_id,
+            )
+            if existing:
+                return existing["number"]
+
+            taken = {
+                r["number"]
+                for r in await conn.fetch(
+                    "SELECT number FROM queue_tickets WHERE guild_id = $1", guild_id
+                )
+            }
+            number = next((n for n in range(QUEUE_MIN, QUEUE_MAX + 1) if n not in taken), None)
+            if number is None:
+                return None
+
+            await conn.execute(
+                """
+                INSERT INTO queue_tickets (guild_id, number, user_id, display_name)
+                VALUES ($1, $2, $3, $4)
+                """,
+                guild_id,
+                number,
+                user_id,
+                display_name,
+            )
+            return number
+
+
+async def complete_ticket(guild_id: int, user_id: int) -> Optional[int]:
+    """Remove the caller's ticket. Returns the freed number, or None if they had none."""
+    async with pool().acquire() as conn:
+        return await conn.fetchval(
+            "DELETE FROM queue_tickets WHERE guild_id = $1 AND user_id = $2 RETURNING number",
+            guild_id,
+            user_id,
+        )
+
+
+async def list_active_tickets(guild_id: int) -> list[asyncpg.Record]:
+    async with pool().acquire() as conn:
+        return await conn.fetch(
+            "SELECT * FROM queue_tickets WHERE guild_id = $1 ORDER BY number ASC",
+            guild_id,
+        )
+
+
+async def clear_all_tickets(guild_id: int) -> None:
+    async with pool().acquire() as conn:
+        await conn.execute("DELETE FROM queue_tickets WHERE guild_id = $1", guild_id)
