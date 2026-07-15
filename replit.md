@@ -1,45 +1,47 @@
-# [Project name]
+# Style-Bot — Discord Server Bot
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A general-purpose Discord server bot (in the spirit of MEE6) providing moderation, leveling/XP, welcome messages, automod, custom commands, and reaction roles. No music playback (intentionally excluded — see `discord-bot/README.md`).
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Workflow `Discord Bot` runs `cd discord-bot && python bot.py`
+- Required secret: `DISCORD_BOT_TOKEN` — Discord bot token from the Developer Portal (Bot page, not OAuth2/Client Secret)
+- Required: **Server Members Intent** and **Message Content Intent** must be enabled in the Discord Developer Portal (Bot page → Privileged Gateway Intents) or the bot fails to connect
+- Uses the project's shared Postgres database (`DATABASE_URL`) via `asyncpg` — tables: `guild_settings`, `levels`, `level_roles`, `custom_commands`, `reaction_roles`, `warnings`
+- See `discord-bot/README.md` for full setup (OAuth invite scopes/permissions, slash-command sync delay, etc.)
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Python 3.12, py-cord (Discord API), asyncpg (Postgres), python-dotenv, Pillow, requests, aiohttp
+- Standalone `discord-bot/` directory at the workspace root — NOT part of the pnpm workspace/artifacts system (this is a backend bot, not a web/mobile artifact)
+- Shares the same Postgres database as the rest of the project
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `discord-bot/bot.py` — entry point, loads all cogs, starts the bot
+- `discord-bot/db.py` — asyncpg pool + CRUD helpers for all tables
+- `discord-bot/utils.py` — shared embed helpers, template rendering, XP curve, permission checks
+- `discord-bot/cogs/` — one cog per feature area: `moderation.py`, `automod.py`, `leveling.py`, `welcome.py`, `customcommands.py`, `reactionroles.py`, `settings.py`
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Python bot lives outside `artifacts/` since it doesn't fit the web/mobile/slides artifact model — it's a standalone backend process bound to a workflow, not a previewable artifact.
+- Music playback was explicitly excluded (ffmpeg/voice complexity + YouTube ToS risk).
+- Uses the project's existing shared Postgres instance rather than a separate DB service.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Server admins can: moderate members (kick/ban/timeout/warn/purge), run a leveling system with XP and level-based role rewards, send templated welcome/leave messages, auto-filter banned words/invite links/mention spam, define custom text commands with a configurable prefix, and set up reaction-role menus.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Respond to this user in Thai.
+- When requesting secrets (like bot tokens), always use the secure secret request form — never accept a secret value pasted directly into chat. If the user pastes one in chat anyway, treat it as leaked, do not use it, and ask them to reset/rotate it before providing it again through the form.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- The bot will not start without `DISCORD_BOT_TOKEN` set, and will fail with `PrivilegedIntentsRequired` unless Server Members + Message Content intents are enabled in the Developer Portal — both are manual steps only the user can do.
 
 ## Pointers
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details (applies to the `artifacts/` side of the project, not `discord-bot/`)

@@ -1,0 +1,1 @@
+- [Discord bot token pitfalls](discord-bot-token-pitfalls.md) — spot invalid/leaked Discord bot tokens (format check, intents errors, chat-pasted secrets)
