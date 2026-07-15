@@ -30,6 +30,8 @@ class Settings(commands.Cog):
             "Custom commands: `/customcommand add`, `/customcommand list`\n"
             "Reaction roles: `/reactionrole add`\n"
             "Queue: `/queue panel`, `/queue setdisplay`, `/queue reset`\n"
+            "Support panel: `/supportpanel setadmin`, `/supportpanel sethelper`, `/supportpanel setrole`, "
+            "`/supportpanel setchannel`, `/supportpanel panel`\n"
             "Settings: `/settings logchannel`",
         )
         await ctx.respond(embed=embed, ephemeral=True)

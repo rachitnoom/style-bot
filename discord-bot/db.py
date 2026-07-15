@@ -365,3 +365,38 @@ async def list_active_tickets(guild_id: int) -> list[asyncpg.Record]:
 async def clear_all_tickets(guild_id: int) -> None:
     async with pool().acquire() as conn:
         await conn.execute("DELETE FROM queue_tickets WHERE guild_id = $1", guild_id)
+
+
+# ---------------------------------------------------------------------------
+# support_panel_settings
+# ---------------------------------------------------------------------------
+
+async def get_support_panel_settings(guild_id: int) -> asyncpg.Record:
+    async with pool().acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT * FROM support_panel_settings WHERE guild_id = $1", guild_id
+        )
+        if row is None:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO support_panel_settings (guild_id) VALUES ($1)
+                ON CONFLICT (guild_id) DO UPDATE SET guild_id = EXCLUDED.guild_id
+                RETURNING *
+                """,
+                guild_id,
+            )
+        return row
+
+
+async def update_support_panel_settings(guild_id: int, **fields) -> None:
+    if not fields:
+        return
+    await get_support_panel_settings(guild_id)  # ensure a row exists
+    set_clause = ", ".join(f"{key} = ${i + 2}" for i, key in enumerate(fields))
+    values = list(fields.values())
+    async with pool().acquire() as conn:
+        await conn.execute(
+            f"UPDATE support_panel_settings SET {set_clause} WHERE guild_id = $1",
+            guild_id,
+            *values,
+        )

@@ -33,6 +33,7 @@ COGS = [
     "cogs.customcommands",
     "cogs.reactionroles",
     "cogs.queue",
+    "cogs.supportpanel",
     "cogs.settings",
 ]
 
