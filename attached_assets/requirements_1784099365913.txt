@@ -1,0 +1,30 @@
+# Dependencies for Style-Bot Discord project
+# Python 3.10+ recommended
+
+# Core Discord bot library (actively maintained fork of discord.py)
+py-cord
+
+# Environment variables (for bot token, API keys, etc.)
+python-dotenv
+
+# Image processing (if Style-Bot involves image editing/generation previews)
+Pillow
+
+# HTTP requests (for external APIs like image generation, translation, etc.)
+requests
+aiohttp
+
+# Optional: For async improvements and speed
+# py-cord[speed]  # uncomment if needed, includes orjson, etc.
+
+# Optional: If using OpenAI or similar for smart responses / style prompts
+# openai
+
+# Optional: For database if storing user styles/preferences (e.g. SQLite)
+# aiosqlite
+
+# Market data for price alerts (Crypto)
+coingecko-sdk
+
+# Note: For Replit deployment, add this to your .replit or use the Packages tab
+# Also consider using a .env file (add to .gitignore)
