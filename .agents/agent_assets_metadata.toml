@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "mjuriGr5qiKQxZwJd128k"
+uri = "file://artifacts/always-on-video/public/audio/bg_music.mp3"
+type = "audio"
+title = "Always On synthwave background music"

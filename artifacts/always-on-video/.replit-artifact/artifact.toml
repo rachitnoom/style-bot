@@ -1,0 +1,27 @@
+kind = "video"
+previewPath = "/always-on-video/"
+title = "Always On"
+version = "1.0.0"
+id = "artifacts/always-on-video"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/always-on-video/" ]
+localPort = 25612
+
+[services.development]
+run = "pnpm --filter @workspace/always-on-video run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/always-on-video", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/always-on-video/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25612"
+BASE_PATH = "/always-on-video/"
