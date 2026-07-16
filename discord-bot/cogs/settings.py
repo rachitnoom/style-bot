@@ -212,6 +212,16 @@ class Settings(commands.Cog):
             await db.update_guild_settings(ctx.guild.id, rank_role_id=role.id)
             await ctx.respond(embed=success_embed(f"จำกัดแล้ว — เฉพาะสมาชิกที่มีบทบาท {role.mention} เท่านั้นที่ใช้ `/level rank` และ `/level leaderboard` ได้"), ephemeral=True)
 
+    @discord.slash_command(name="ping", description="ตรวจสอบว่าบอทออนไลน์และดู latency")
+    async def ping_cmd(self, ctx: discord.ApplicationContext):
+        latency = round(ctx.bot.latency * 1000)
+        embed = discord.Embed(
+            title="🏓 Pong!",
+            description=f"Latency: **{latency} ms**",
+            color=0x2ECC71 if latency < 200 else 0xE74C3C,
+        )
+        await ctx.respond(embed=embed)
+
     @discord.slash_command(name="help", description="ดูคำสั่งและวิธีการใช้งานทั้งหมดของบอท")
     async def help_cmd(self, ctx: discord.ApplicationContext):
         await ctx.respond(embed=_overview_embed(), view=HelpView(), ephemeral=True)
