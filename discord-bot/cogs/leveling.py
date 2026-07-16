@@ -62,31 +62,52 @@ class Leveling(commands.Cog):
                     except discord.Forbidden:
                         pass
 
-    @level_group.command(name="rank", description="Show your (or someone else's) level and XP")
+    async def _check_rank_role(self, ctx: discord.ApplicationContext) -> bool:
+        """Return True if the member is allowed to use rank/leaderboard commands."""
+        settings = await db.get_guild_settings(ctx.guild.id)
+        role_id = settings["rank_role_id"]
+        if not role_id:
+            return True  # ไม่ได้ตั้งค่า = ทุกคนใช้ได้
+        role = ctx.guild.get_role(role_id)
+        if role and role in ctx.author.roles:
+            return True
+        role_mention = role.mention if role else f"(role id {role_id})"
+        from utils import error_embed
+        await ctx.respond(
+            embed=error_embed(f"คำสั่งนี้ใช้ได้เฉพาะสมาชิกที่มีบทบาท {role_mention} เท่านั้น"),
+            ephemeral=True,
+        )
+        return False
+
+    @level_group.command(name="rank", description="ดูเลเวลและ XP ของตัวเองหรือสมาชิกคนอื่น")
     async def rank(self, ctx: discord.ApplicationContext, member: discord.Member = None):
+        if not await self._check_rank_role(ctx):
+            return
         member = member or ctx.author
         row = await db.get_level_row(ctx.guild.id, member.id)
         rank = await db.get_rank(ctx.guild.id, member.id)
         next_level_xp = xp_for_level(row["level"] + 1)
         embed = styled_embed(
-            f"Rank — {member.display_name}",
-            f"**Level:** {row['level']}\n**XP:** {row['xp']} / {next_level_xp}\n**Server rank:** #{rank}",
+            f"อันดับ — {member.display_name}",
+            f"**เลเวล:** {row['level']}\n**XP:** {row['xp']} / {next_level_xp}\n**อันดับในเซิร์ฟเวอร์:** #{rank}",
         )
         embed.set_thumbnail(url=member.display_avatar.url)
         await ctx.respond(embed=embed)
 
-    @level_group.command(name="leaderboard", description="Show the server's top members by XP")
+    @level_group.command(name="leaderboard", description="ดูอันดับสมาชิกที่มี XP สูงสุดของเซิร์ฟเวอร์")
     async def leaderboard(self, ctx: discord.ApplicationContext):
+        if not await self._check_rank_role(ctx):
+            return
         rows = await db.get_leaderboard(ctx.guild.id, limit=10)
         if not rows:
-            await ctx.respond(embed=styled_embed("Leaderboard", "No one has earned XP yet."))
+            await ctx.respond(embed=styled_embed("อันดับ XP", "ยังไม่มีสมาชิกสะสม XP"))
             return
         lines = []
         for i, row in enumerate(rows, start=1):
             member = ctx.guild.get_member(row["user_id"])
             name = member.display_name if member else f"User {row['user_id']}"
-            lines.append(f"**{i}.** {name} — Level {row['level']} ({row['xp']} XP)")
-        await ctx.respond(embed=styled_embed("🏆 Leaderboard", "\n".join(lines)))
+            lines.append(f"**{i}.** {name} — เลเวล {row['level']} ({row['xp']} XP)")
+        await ctx.respond(embed=styled_embed("🏆 อันดับ XP", "\n".join(lines)))
 
     @level_group.command(name="setrole", description="Assign a role to be granted at a given level")
     @is_staff()

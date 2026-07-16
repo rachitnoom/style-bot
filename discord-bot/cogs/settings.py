@@ -202,6 +202,16 @@ class Settings(commands.Cog):
         await db.update_guild_settings(ctx.guild.id, log_channel_id=channel.id)
         await ctx.respond(embed=success_embed(f"บันทึก log จะถูกส่งไปที่ {channel.mention} แล้ว"), ephemeral=True)
 
+    @settings_group.command(name="rankrole", description="กำหนดบทบาทที่อนุญาตให้ใช้คำสั่ง /level rank และ /level leaderboard")
+    @is_staff()
+    async def rankrole(self, ctx: discord.ApplicationContext, role: discord.Option(discord.Role, "บทบาทที่อนุญาต (ไม่ระบุ = ล้างข้อจำกัด ทุกคนใช้ได้)", required=False, default=None)):
+        if role is None:
+            await db.update_guild_settings(ctx.guild.id, rank_role_id=None)
+            await ctx.respond(embed=success_embed("ล้างข้อจำกัดแล้ว — ทุกคนสามารถใช้ `/level rank` และ `/level leaderboard` ได้"), ephemeral=True)
+        else:
+            await db.update_guild_settings(ctx.guild.id, rank_role_id=role.id)
+            await ctx.respond(embed=success_embed(f"จำกัดแล้ว — เฉพาะสมาชิกที่มีบทบาท {role.mention} เท่านั้นที่ใช้ `/level rank` และ `/level leaderboard` ได้"), ephemeral=True)
+
     @discord.slash_command(name="help", description="ดูคำสั่งและวิธีการใช้งานทั้งหมดของบอท")
     async def help_cmd(self, ctx: discord.ApplicationContext):
         await ctx.respond(embed=_overview_embed(), view=HelpView(), ephemeral=True)
