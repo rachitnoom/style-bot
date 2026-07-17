@@ -379,6 +379,18 @@ async def get_member_current_statuses(guild_id: int) -> list[asyncpg.Record]:
 
 
 # ---------------------------------------------------------------------------
+# alert_channel helpers
+# ---------------------------------------------------------------------------
+
+async def get_all_alert_channels() -> list[asyncpg.Record]:
+    """Return (guild_id, alert_channel_id) for every guild that has an alert channel set."""
+    async with pool().acquire() as conn:
+        return await conn.fetch(
+            "SELECT guild_id, alert_channel_id FROM guild_settings WHERE alert_channel_id IS NOT NULL"
+        )
+
+
+# ---------------------------------------------------------------------------
 # support_panel_settings
 # ---------------------------------------------------------------------------
 
