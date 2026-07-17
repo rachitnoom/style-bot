@@ -67,6 +67,7 @@ def main() -> None:
 
     async def _setup_db():
         await db.init_pool()
+        await db.run_migrations()
 
     for cog in COGS:
         bot.load_extension(cog)

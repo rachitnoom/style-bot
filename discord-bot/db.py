@@ -1,9 +1,13 @@
 """Shared PostgreSQL connection pool and data-access helpers for Style-Bot."""
 
+import logging
 import os
+import pathlib
 from typing import Optional
 
 import asyncpg
+
+logger = logging.getLogger("style-bot.db")
 
 _pool: Optional[asyncpg.Pool] = None
 
@@ -31,6 +35,25 @@ async def close_pool() -> None:
     if _pool is not None:
         await _pool.close()
         _pool = None
+
+
+async def run_migrations() -> None:
+    """Apply all SQL files in the migrations/ directory in alphabetical order.
+
+    Every migration file must be written to be idempotent (IF NOT EXISTS,
+    DO … EXCEPTION, etc.) so this is safe to call on every startup.
+    """
+    migrations_dir = pathlib.Path(__file__).parent / "migrations"
+    sql_files = sorted(migrations_dir.glob("*.sql"))
+    if not sql_files:
+        logger.info("No migration files found — skipping.")
+        return
+    async with pool().acquire() as conn:
+        for path in sql_files:
+            logger.info("Applying migration: %s", path.name)
+            await conn.execute(path.read_text())
+            logger.info("Migration applied:  %s", path.name)
+    logger.info("All migrations up to date.")
 
 
 # ---------------------------------------------------------------------------
