@@ -1,6 +1,5 @@
-"""Support panel: three buttons — call an admin, request help, and self-assign a role.
-Clicking "เรียกแอดมิน" or "ขอความช่วยเหลือ" posts an alert into a configured channel.
-Clicking "รับบทบาท" toggles a configured role on the clicking member.
+"""Support panel: two buttons — call an admin and request help.
+Clicking either button posts an alert into a configured channel.
 """
 
 import discord
@@ -11,15 +10,13 @@ from utils import error_embed, is_staff, styled_embed, success_embed
 
 CALL_ADMIN_ID = "supportpanel_call_admin"
 CALL_HELP_ID = "supportpanel_call_help"
-TAKE_ROLE_ID = "supportpanel_take_role"
 
 
 def _panel_embed() -> discord.Embed:
     return styled_embed(
         "🛎️ ศูนย์ช่วยเหลือ",
         "🔔 **เรียกแอดมิน** — แจ้งเตือนแอดมินให้มาดูแล\n"
-        "🙋 **ขอความช่วยเหลือ** — แจ้งเตือนทีมช่วยเหลือ\n"
-        "⚔️ **หาปาตี้ลงดัน** — กดเพื่อเข้าร่วม (หรือออกจาก) กลุ่มหาปาตี้ลงดัน",
+        "🙋 **ขอความช่วยเหลือ** — แจ้งเตือนทีมช่วยเหลือ",
     )
 
 
@@ -47,10 +44,6 @@ class SupportPanelView(discord.ui.View):
         cog: "SupportPanel" = interaction.client.get_cog("SupportPanel")
         await cog.handle_call_help(interaction)
 
-    @discord.ui.button(label="หาปาตี้ลงดัน", emoji="⚔️", style=discord.ButtonStyle.green, custom_id=TAKE_ROLE_ID)
-    async def take_role(self, button: discord.ui.Button, interaction: discord.Interaction):
-        cog: "SupportPanel" = interaction.client.get_cog("SupportPanel")
-        await cog.handle_take_role(interaction)
 
 
 class SupportPanel(commands.Cog):
@@ -91,12 +84,6 @@ class SupportPanel(commands.Cog):
         await db.update_support_panel_settings(ctx.guild.id, helper_role_id=role.id)
         await ctx.respond(embed=success_embed(f"ปุ่ม 'ขอความช่วยเหลือ' จะแจ้งเตือน {role.mention} แล้ว"), ephemeral=True)
 
-    @panel_group.command(name="setrole", description="กำหนดบทบาทที่จะได้รับจากปุ่ม 'หาปาตี้ลงดัน'")
-    @is_staff()
-    async def setrole(self, ctx: discord.ApplicationContext, role: discord.Role):
-        await db.update_support_panel_settings(ctx.guild.id, receive_role_id=role.id)
-        await ctx.respond(embed=success_embed(f"ปุ่ม 'หาปาตี้ลงดัน' จะให้/ถอด {role.mention} แล้ว"), ephemeral=True)
-
     @panel_group.command(name="setchannel", description="กำหนดห้องที่จะรับการแจ้งเตือนจากปุ่มเรียกแอดมิน/ขอความช่วยเหลือ")
     @is_staff()
     async def setchannel(self, ctx: discord.ApplicationContext, channel: discord.TextChannel):
@@ -112,8 +99,6 @@ class SupportPanel(commands.Cog):
             missing.append("`/supportpanel setadmin`")
         if not settings["helper_role_id"]:
             missing.append("`/supportpanel sethelper`")
-        if not settings["receive_role_id"]:
-            missing.append("`/supportpanel setrole`")
         if not settings["notify_channel_id"]:
             missing.append("`/supportpanel setchannel`")
         if missing:
@@ -166,38 +151,6 @@ class SupportPanel(commands.Cog):
             )
         )
         await interaction.response.send_message(embed=success_embed("ส่งคำขอความช่วยเหลือแล้ว โปรดรอสักครู่"), ephemeral=True)
-
-    async def handle_take_role(self, interaction: discord.Interaction):
-        settings = await db.get_support_panel_settings(interaction.guild.id)
-        role_id = settings["receive_role_id"]
-        role = interaction.guild.get_role(role_id) if role_id else None
-        if not role:
-            await interaction.response.send_message(
-                embed=error_embed("ยังไม่ได้ตั้งค่าปุ่มนี้ กรุณาติดต่อทีมงานให้ตั้งค่าก่อน"), ephemeral=True
-            )
-            return
-
-        member = interaction.user
-        try:
-            if role in member.roles:
-                await member.remove_roles(role, reason="Support panel: party role removed")
-                await interaction.response.send_message(embed=success_embed(f"ออกจากปาตี้ลงดัน ({role.mention}) แล้ว"), ephemeral=True)
-                action = "ออกจากปาตี้ลงดัน"
-            else:
-                await member.add_roles(role, reason="Support panel: party role granted")
-                await interaction.response.send_message(embed=success_embed(f"เข้าร่วมปาตี้ลงดัน ({role.mention}) แล้ว"), ephemeral=True)
-                action = "เข้าร่วมปาตี้ลงดัน"
-        except discord.Forbidden:
-            await interaction.response.send_message(
-                embed=error_embed("บอทไม่มีสิทธิ์จัดการบทบาทนี้ (ตรวจสอบลำดับ role ของบอท)"), ephemeral=True
-            )
-            return
-
-        channel = await self._notify_channel(interaction.guild, settings)
-        if channel:
-            await channel.send(
-                embed=styled_embed("⚔️ หาปาตี้ลงดัน", f"{member.mention} {action} — {role.mention}")
-            )
 
 
 def setup(bot: discord.Bot):
