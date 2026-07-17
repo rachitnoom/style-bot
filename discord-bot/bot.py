@@ -21,6 +21,7 @@ logger = logging.getLogger("style-bot")
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
+intents.presences = True  # required for on_presence_update to fire
 
 bot = discord.Bot(intents=intents)
 
@@ -33,6 +34,7 @@ COGS = [
     "cogs.queue",
     "cogs.supportpanel",
     "cogs.settings",
+    "cogs.presence",
 ]
 
 

@@ -268,6 +268,94 @@ async def clear_all_tickets(guild_id: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# presence_events / member_current_status
+# ---------------------------------------------------------------------------
+
+VALID_STATUSES = {"online", "idle", "dnd", "offline"}
+
+
+async def record_presence_event(
+    guild_id: int, user_id: int, username: str, status: str
+) -> None:
+    """Insert a presence event and upsert the current-status snapshot."""
+    if status not in VALID_STATUSES:
+        status = "offline"
+    async with pool().acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                """
+                INSERT INTO presence_events (guild_id, user_id, username, status)
+                VALUES ($1, $2, $3, $4::presence_status)
+                """,
+                guild_id,
+                user_id,
+                username,
+                status,
+            )
+            await conn.execute(
+                """
+                INSERT INTO member_current_status (guild_id, user_id, username, status, updated_at)
+                VALUES ($1, $2, $3, $4::presence_status, NOW())
+                ON CONFLICT (guild_id, user_id)
+                DO UPDATE SET username = EXCLUDED.username,
+                              status = EXCLUDED.status,
+                              updated_at = EXCLUDED.updated_at
+                """,
+                guild_id,
+                user_id,
+                username,
+                status,
+            )
+
+
+async def get_presence_events(
+    guild_id: int,
+    user_id: Optional[int] = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[asyncpg.Record]:
+    """Return presence events for a guild, optionally filtered by user."""
+    async with pool().acquire() as conn:
+        if user_id is not None:
+            return await conn.fetch(
+                """
+                SELECT * FROM presence_events
+                WHERE guild_id = $1 AND user_id = $2
+                ORDER BY recorded_at DESC
+                LIMIT $3 OFFSET $4
+                """,
+                guild_id,
+                user_id,
+                limit,
+                offset,
+            )
+        return await conn.fetch(
+            """
+            SELECT * FROM presence_events
+            WHERE guild_id = $1
+            ORDER BY recorded_at DESC
+            LIMIT $2 OFFSET $3
+            """,
+            guild_id,
+            limit,
+            offset,
+        )
+
+
+async def get_member_current_statuses(guild_id: int) -> list[asyncpg.Record]:
+    """Return the latest status snapshot for every member in a guild."""
+    async with pool().acquire() as conn:
+        return await conn.fetch(
+            """
+            SELECT * FROM member_current_status
+            WHERE guild_id = $1
+            ORDER BY username ASC
+            """,
+            guild_id,
+        )
+
+
+# ---------------------------------------------------------------------------
 # support_panel_settings
 # ---------------------------------------------------------------------------
 
