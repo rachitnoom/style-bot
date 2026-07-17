@@ -5,9 +5,14 @@ Run with: python discord-bot/bot.py
 Requires the DISCORD_BOT_TOKEN environment variable / secret.
 """
 
+import asyncio
+import json
 import logging
 import os
+import time
 
+import aiohttp
+from aiohttp import web
 import discord
 from dotenv import load_dotenv
 
@@ -24,6 +29,37 @@ intents.message_content = True
 intents.presences = True  # required for on_presence_update to fire
 
 bot = discord.Bot(intents=intents)
+
+_start_time = time.monotonic()
+
+
+async def health_handler(request: web.Request) -> web.Response:
+    """Return bot health status as JSON."""
+    uptime_seconds = time.monotonic() - _start_time
+    payload = {
+        "status": "ok",
+        "uptime_seconds": round(uptime_seconds, 2),
+        "guild_count": len(bot.guilds),
+        "ready": not bot.is_closed(),
+    }
+    return web.Response(
+        text=json.dumps(payload),
+        content_type="application/json",
+        status=200,
+    )
+
+
+async def run_health_server() -> None:
+    """Run a lightweight HTTP server for Railway health checks."""
+    port = int(os.environ.get("PORT", 8080))
+    app = web.Application()
+    app.router.add_get("/", health_handler)
+    app.router.add_get("/health", health_handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logger.info("Health server listening on port %d", port)
 
 COGS = [
     "cogs.moderation",
@@ -65,15 +101,17 @@ def main() -> None:
             "DISCORD_BOT_TOKEN is not set. Add it as a secret before starting the bot."
         )
 
-    async def _setup_db():
-        await db.init_pool()
-        await db.run_migrations()
-
     for cog in COGS:
         bot.load_extension(cog)
 
-    bot.loop.run_until_complete(_setup_db())
-    bot.run(token)
+    async def _runner():
+        await db.init_pool()
+        await db.run_migrations()
+        await run_health_server()
+        async with bot:
+            await bot.start(token)
+
+    asyncio.run(_runner())
 
 
 if __name__ == "__main__":
