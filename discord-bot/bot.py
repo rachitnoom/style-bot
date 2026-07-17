@@ -6,9 +6,11 @@ Requires the DISCORD_BOT_TOKEN environment variable / secret.
 """
 
 import asyncio
+import datetime
 import json
 import logging
 import os
+import pathlib
 import signal
 import time
 
@@ -32,6 +34,9 @@ intents.presences = True  # required for on_presence_update to fire
 bot = discord.Bot(intents=intents)
 
 _start_time = time.monotonic()
+
+# Sentinel file written on each successful startup — used to detect restarts.
+_SENTINEL_FILE = pathlib.Path("/tmp/.style_bot_started")
 
 
 async def health_handler(request: web.Request) -> web.Response:
@@ -89,10 +94,61 @@ COGS = [
 ]
 
 
+async def send_startup_alert() -> None:
+    """Send a startup notification to ALERT_CHANNEL_ID, if configured."""
+    alert_channel_id = os.environ.get("ALERT_CHANNEL_ID")
+    if not alert_channel_id:
+        logger.info("ALERT_CHANNEL_ID not set — skipping startup alert.")
+        return
+
+    try:
+        channel_id = int(alert_channel_id)
+    except ValueError:
+        logger.warning("ALERT_CHANNEL_ID=%r is not a valid integer — skipping alert.", alert_channel_id)
+        return
+
+    channel = bot.get_channel(channel_id)
+    if channel is None:
+        try:
+            channel = await bot.fetch_channel(channel_id)
+        except discord.NotFound:
+            logger.warning("Alert channel %d not found — skipping startup alert.", channel_id)
+            return
+        except discord.Forbidden:
+            logger.warning("No permission to access alert channel %d — skipping alert.", channel_id)
+            return
+
+    is_restart = _SENTINEL_FILE.exists()
+    reason = "🔄 **Restart** — bot came back online after going offline." if is_restart else "🟢 **First start** — bot is starting up for the first time."
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    embed = discord.Embed(
+        title="🤖 Style-Bot is Online",
+        description=reason,
+        color=discord.Color.green() if not is_restart else discord.Color.orange(),
+        timestamp=now,
+    )
+    embed.add_field(name="Servers", value=str(len(bot.guilds)), inline=True)
+    embed.add_field(name="UTC Time", value=now.strftime("%Y-%m-%d %H:%M:%S"), inline=True)
+    embed.set_footer(text=f"Bot ID: {bot.user.id}")
+
+    try:
+        await channel.send(embed=embed)
+        logger.info("Startup alert sent to channel %d (restart=%s).", channel_id, is_restart)
+    except discord.Forbidden:
+        logger.warning("Missing send-message permission in alert channel %d.", channel_id)
+    except Exception:
+        logger.exception("Failed to send startup alert to channel %d.", channel_id)
+
+    # Write / touch sentinel so the next startup is recognised as a restart.
+    _SENTINEL_FILE.write_text(now.isoformat())
+
+
 @bot.event
 async def on_ready():
     logger.info("Logged in as %s (id=%s)", bot.user, bot.user.id)
     logger.info("Connected to %d server(s).", len(bot.guilds))
+    await send_startup_alert()
 
 
 @bot.event
