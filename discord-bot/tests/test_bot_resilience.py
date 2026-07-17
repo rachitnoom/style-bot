@@ -22,6 +22,7 @@ Test 4 – Clean reconnect after crash:
 """
 
 import asyncio
+import logging
 import os
 import pathlib
 import socket
@@ -294,4 +295,45 @@ def test_clean_reconnect_after_crash():
     assert data["body"]["status"] == "ok"
     assert data["body"]["ready"] is True, (
         f"Bot should be ready after clean restart, got: {data['body']}"
+    )
+
+
+# ── Test 5: startup alert distinguishes first start vs restart ───────────────
+
+@pytest.mark.asyncio
+async def test_startup_alert_sends_first_start_then_restart(tmp_path, caplog):
+    """send_startup_alert distinguishes first start from restart via sentinel file.
+
+    A fresh start creates the sentinel and sends a first-start alert.  A second
+    start (simulating a Railway restart) sees the sentinel and sends a restart
+    alert instead.  This confirms Task #15: startup alerts fire correctly after a
+    simulated crash and restart.
+    """
+    sentinel = tmp_path / ".style_bot_started"
+    bot_module = _load_bot_module()
+    bot_module._SENTINEL_FILE = sentinel
+
+    mock_channel = MagicMock()
+    mock_channel.send = AsyncMock()
+    mock_bot = MagicMock()
+    mock_bot.guilds = ["guild1"]
+    mock_bot.user.id = 12345
+    mock_bot.get_channel.return_value = mock_channel
+    bot_module.bot = mock_bot
+
+    with patch.dict(os.environ, {"ALERT_CHANNEL_ID": "999999"}):
+        # First call: sentinel does not exist yet → first start
+        with caplog.at_level(logging.INFO, logger="style-bot"):
+            await bot_module.send_startup_alert()
+        assert "Startup alert sent to channel 999999 (restart=False)." in caplog.text
+        assert sentinel.exists(), "Sentinel file should be created after first start"
+
+        # Second call: sentinel exists → restart (simulates Railway restart)
+        caplog.clear()
+        with caplog.at_level(logging.INFO, logger="style-bot"):
+            await bot_module.send_startup_alert()
+        assert "Startup alert sent to channel 999999 (restart=True)." in caplog.text
+
+    assert mock_channel.send.call_count == 2, (
+        f"Expected two startup alerts (first start + restart), got {mock_channel.send.call_count}"
     )
