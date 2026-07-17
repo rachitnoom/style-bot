@@ -1,6 +1,5 @@
-"""Style-Bot — a general-purpose Discord server bot (moderation, leveling,
-welcome messages, automod, custom commands, reaction roles), in the spirit
-of MEE6.
+"""Style-Bot — a general-purpose Discord server bot (moderation,
+welcome messages, automod, custom commands, reaction roles, queue, support panel).
 
 Run with: python discord-bot/bot.py
 Requires the DISCORD_BOT_TOKEN environment variable / secret.
@@ -28,7 +27,6 @@ bot = discord.Bot(intents=intents)
 COGS = [
     "cogs.moderation",
     "cogs.automod",
-    "cogs.leveling",
     "cogs.welcome",
     "cogs.customcommands",
     "cogs.reactionroles",

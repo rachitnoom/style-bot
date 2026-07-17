@@ -29,18 +29,6 @@ HELP_CATEGORIES = {
             ("/mod clear จำนวน",                  "ลบข้อความล่าสุด (สูงสุด 100 ข้อความ)"),
         ],
     },
-    "leveling": {
-        "label": "ระบบเลเวล / XP",
-        "emoji": "⭐",
-        "description": "ระบบสะสม XP จากการส่งข้อความ พร้อมรางวัลบทบาทเมื่อเลเวลขึ้น",
-        "commands": [
-            ("/level rank [@สมาชิก]",             "ดูเลเวลและ XP ของตัวเองหรือคนอื่น"),
-            ("/level leaderboard",                "อันดับสมาชิกที่มี XP สูงสุดของเซิร์ฟเวอร์"),
-            ("/level setrole เลเวล @บทบาท",       "ตั้งบทบาทรางวัลเมื่อถึงเลเวลที่กำหนด"),
-            ("/level removerole เลเวล",           "ลบบทบาทรางวัลของเลเวลนั้น"),
-            ("/level setchannel #ห้อง",           "กำหนดห้องสำหรับประกาศเลเวลอัพ"),
-        ],
-    },
     "welcome": {
         "label": "ข้อความต้อนรับ / อำลา",
         "emoji": "👋",
@@ -201,16 +189,6 @@ class Settings(commands.Cog):
     async def logchannel(self, ctx: discord.ApplicationContext, channel: discord.TextChannel):
         await db.update_guild_settings(ctx.guild.id, log_channel_id=channel.id)
         await ctx.respond(embed=success_embed(f"บันทึก log จะถูกส่งไปที่ {channel.mention} แล้ว"), ephemeral=True)
-
-    @settings_group.command(name="rankrole", description="กำหนดบทบาทที่อนุญาตให้ใช้คำสั่ง /level rank และ /level leaderboard")
-    @is_staff()
-    async def rankrole(self, ctx: discord.ApplicationContext, role: discord.Option(discord.Role, "บทบาทที่อนุญาต (ไม่ระบุ = ล้างข้อจำกัด ทุกคนใช้ได้)", required=False, default=None)):
-        if role is None:
-            await db.update_guild_settings(ctx.guild.id, rank_role_id=None)
-            await ctx.respond(embed=success_embed("ล้างข้อจำกัดแล้ว — ทุกคนสามารถใช้ `/level rank` และ `/level leaderboard` ได้"), ephemeral=True)
-        else:
-            await db.update_guild_settings(ctx.guild.id, rank_role_id=role.id)
-            await ctx.respond(embed=success_embed(f"จำกัดแล้ว — เฉพาะสมาชิกที่มีบทบาท {role.mention} เท่านั้นที่ใช้ `/level rank` และ `/level leaderboard` ได้"), ephemeral=True)
 
     @discord.slash_command(name="ping", description="ตรวจสอบว่าบอทออนไลน์และดู latency")
     async def ping_cmd(self, ctx: discord.ApplicationContext):
