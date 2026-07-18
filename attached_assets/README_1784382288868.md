@@ -1,0 +1,146 @@
+# 🎨 Style-Bot - โปรเจ็กต์ Discord Bot แต่งภาพสไตล์ (เวอร์ชันเสร็จสมบูรณ์)
+
+โปรเจ็กต์ Discord Bot ที่พัฒนาเสร็จสมบูรณ์แล้ว สำหรับใช้**แต่งภาพ**ด้วยฟิลเตอร์สไตล์ต่างๆ บนแพลตฟอร์ม **Replit** 
+
+สร้างด้วย Python + discord.py + Pillow (PIL) มีทั้งฟังก์ชันพื้นฐานและแอนิเมชั่น GIF
+
+---
+
+## ✨ ฟีเจอร์หลัก
+
+- รับภาพจากผู้ใช้ผ่าน Discord (แนบรูป)
+- แปลงสไตล์ภาพด้วยคำสั่งง่ายๆ
+- สร้าง **GIF แอนิเมชั่นซูมเข้า** อัตโนมัติ
+- Web server ในตัว (Flask) เพื่อให้บอทออนไลน์ตลอดเวลา
+- รองรับภาษาไทยในข้อความตอบกลับ
+- ปลอดภัยและเป็นไปตามข้อกำหนด (ไม่สร้างเนื้อหาต้องห้าม)
+
+**สไตล์ที่รองรับ:**
+- `grayscale` → ขาวดำ
+- `sepia` → เซเปีย วินเทจ
+- `blur` → เบลอ
+- `sharpen` → เพิ่มความคม
+- `cartoon` → การ์ตูน
+- `whitebg` → ปรับโทนสว่าง (คล้ายพื้นหลังขาว)
+- `resize` → ปรับขนาดภาพ
+- `animate` → GIF ซูมเข้า
+
+---
+
+## 📦 ไฟล์ในโปรเจ็กต์
+
+| ไฟล์            | คำอธิบาย                          |
+|----------------|----------------------------------|
+| `main.py`      | โค้ดบอทหลัก (Discord + Image Processing) |
+| `requirements.txt` | รายการไลบรารีที่ต้องติดตั้ง     |
+| `README.md`    | เอกสารคู่มือนี้                   |
+
+---
+
+## 🚀 วิธีติดตั้งและใช้งานบน Replit (ขั้นตอนละเอียด)
+
+### 1. สร้าง Repl ใหม่
+- ไปที่ [replit.com](https://replit.com) → New Repl → เลือก **Python**
+
+### 2. เพิ่มไฟล์
+- ลบไฟล์เริ่มต้น (main.py เดิม) 
+- สร้างไฟล์ใหม่ชื่อ `main.py` แล้ว copy โค้ดจากไฟล์นี้
+- สร้าง `requirements.txt` แล้ว copy เนื้อหา
+
+### 3. ตั้งค่า Discord Bot
+1. ไปที่ [Discord Developer Portal](https://discord.com/developers/applications)
+2. คลิก **New Application** → ตั้งชื่อ (เช่น Style-Bot)
+3. ไปที่แท็บ **Bot** → คลิก **Add Bot**
+4. เปิดสวิตช์ **MESSAGE CONTENT INTENT** (สำคัญมาก!)
+5. คัดลอก **Token** (กด Reset Token ถ้าจำเป็น)
+6. เก็บ Token ไว้ (อย่าแชร์ให้ใคร)
+
+### 4. เพิ่ม Token เข้า Replit Secrets
+- ใน Replit ของคุณ → เมนูด้านซ้าย → **Secrets** (ไอคอนล็อค)
+- คลิก **New Secret**
+  - Key: `DISCORD_TOKEN`
+  - Value: วางโทเค็นที่คัดลอกจากขั้นตอนที่ 3
+- Save
+
+### 5. ติดตั้ง Dependencies
+เปิด **Shell** (Tools → Shell) แล้วรันคำสั่ง:
+```bash
+pip install -r requirements.txt
+```
+
+### 6. รันบอท
+```bash
+python main.py
+```
+- ถ้าสำเร็จจะเห็นข้อความ `✅ Style-Bot พร้อมใช้งาน!`
+- และลิงก์เชิญบอท
+
+### 7. เชิญบอทเข้าร่วมเซิร์ฟเวอร์ Discord
+- จาก Developer Portal → เลือก Application → **OAuth2** → **URL Generator**
+- เลือก scopes: `bot`
+- เลือก Bot Permissions:
+  - Send Messages
+  - Embed Links
+  - Attach Files
+  - Read Message History
+  - (แนะนำ) Add Reactions
+- คัดลอก Generated URL → เปิดลิงก์ → เลือกเซิร์ฟเวอร์ → Authorize
+
+### 8. ทำให้บอทออนไลน์ 24 ชั่วโมง (สำคัญ!)
+**วิธีที่ 1 (แนะนำถ้ามี subscription):**
+- เปิดสวิตช์ **Always On** ใน Replit
+
+**วิธีที่ 2 (ฟรี):**
+- ใช้บริการ [UptimeRobot](https://uptimerobot.com) (ฟรี)
+- เพิ่ม Monitor แบบ HTTP(s)
+- วาง URL ที่ได้จาก Flask (เช่น `https://your-repl-name.your-username.repl.co`)
+- ตั้ง interval 5 นาที
+- บอทจะไม่หลับ
+
+---
+
+## 💬 วิธีใช้ใน Discord
+
+1. เข้าแชแนลที่บอทมีสิทธิ์
+2. **แนบรูปภาพ** (Upload)
+3. พิมพ์คำสั่ง เช่น:
+   - `!cartoon`
+   - `!animate`
+   - `!sepia`
+   - `!resize 600 400`
+4. บอทจะประมวลผลและส่งภาพกลับมาให้
+
+**คำสั่งช่วยเหลือ:** พิมพ์ `!help`
+
+---
+
+## 🛠️ การพัฒนาต่อ (Optional)
+
+- อยากเพิ่ม AI จริง? เชื่อมต่อกับ **Replicate API**, **Hugging Face**, หรือ **xAI / Grok API** (ต้องมี API Key)
+- อยากเพิ่มคำสั่งภาษาไทยเต็มรูปแบบ? ใช้ Slash Commands (`/`)
+- อยากทำ Background Removal จริง? เพิ่ม `rembg` + model (แต่กินทรัพยากร)
+- อยาก deploy ที่อื่น? ใช้ Railway, Render, หรือ VPS
+
+---
+
+## ⚠️ ข้อควรระวัง & ความปลอดภัย
+
+- บอทนี้ใช้ฟิลเตอร์พื้นฐาน ไม่ได้ใช้โมเดล AI หนัก
+- **ห้าม** ใช้สร้างภาพที่ผิดกฎหมาย, NSFW, หรือละเมิดลิขสิทธิ์
+- ปฏิบัติตาม [Discord Terms of Service](https://discord.com/terms) และ Community Guidelines
+- ผู้พัฒนาต้องรับผิดชอบต่อการใช้งานของบอทตัวเอง
+
+---
+
+## 📝 License & Credit
+
+โปรเจ็กต์นี้สร้างเพื่อการเรียนรู้และใช้งานส่วนตัว  
+พัฒนาโดยใช้ความช่วยเหลือจาก Grok (xAI)
+
+หากมีคำถามหรืออยากอัพเดทฟีเจอร์เพิ่มเติม สามารถถามได้เลย!
+
+**ยินดีต้อนรับสู่ Style-Bot!** 🎉
+
+---
+
+*ไฟล์นี้เป็นส่วนหนึ่งของโปรเจ็กต์ Style-Bot ที่เสร็จสมบูรณ์แล้ว*

@@ -17,6 +17,7 @@ import time
 import aiohttp
 from aiohttp import web
 import discord
+from discord.ext import commands as ext_commands
 from dotenv import load_dotenv
 
 import db
@@ -31,7 +32,8 @@ intents.members = True
 intents.message_content = True
 intents.presences = True  # required for on_presence_update to fire
 
-bot = discord.Bot(intents=intents)
+# commands.Bot supports both slash commands AND prefix commands (e.g. !cartoon)
+bot = ext_commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 _start_time = time.monotonic()
 
@@ -100,6 +102,7 @@ COGS = [
     "cogs.settings",
     "cogs.presence",
     "cogs.alerts",
+    "cogs.imagefilter",
 ]
 
 
