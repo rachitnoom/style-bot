@@ -58,11 +58,21 @@ async def health_handler(request: web.Request) -> web.Response:
 async def run_health_server() -> None:
     """Run a lightweight HTTP server for Railway health checks.
 
-    Uses the PORT env var (set automatically by Railway).  In local / Replit
-    dev the env var may be absent or already taken by another service, so
-    failures are logged as a warning rather than crashing the bot.
+    Reads HEALTH_PORT (not PORT) so this service never conflicts with other
+    web artifacts that Replit assigns PORT to.  On Railway set HEALTH_PORT=$PORT
+    in the service's environment variables.  If HEALTH_PORT is unset the server
+    is skipped silently — correct behaviour in local / Replit dev.
     """
-    port = int(os.environ.get("PORT", 8080))
+    raw = os.environ.get("HEALTH_PORT")
+    if not raw:
+        logger.info("HEALTH_PORT not set — skipping health server (OK in dev).")
+        return
+    try:
+        port = int(raw)
+    except ValueError:
+        logger.warning("HEALTH_PORT=%r is not a valid integer — skipping.", raw)
+        return
+
     app = web.Application()
     app.router.add_get("/", health_handler)
     app.router.add_get("/health", health_handler)
@@ -74,8 +84,7 @@ async def run_health_server() -> None:
         logger.info("Health server listening on port %d", port)
     except OSError as exc:
         logger.warning(
-            "Health server could not bind to port %d (%s) — "
-            "skipping health endpoint (OK in local/dev environments).",
+            "Health server could not bind to port %d (%s) — skipping.",
             port, exc.strerror,
         )
         await runner.cleanup()
