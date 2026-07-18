@@ -2,14 +2,8 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "python bot.py"
+startCommand = "HEALTH_PORT=$PORT python bot.py"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 5
 healthcheckPath = "/health"
 healthcheckTimeout = 30
-
-# Railway assigns PORT automatically. Map it to HEALTH_PORT so the bot's
-# health server knows which port to bind, without conflicting with other
-# services that also read PORT.
-[deploy.environmentVariables]
-HEALTH_PORT = "$PORT"
