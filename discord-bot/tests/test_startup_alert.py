@@ -81,6 +81,8 @@ def _load_bot_module():
 
     overrides = {
         "discord": mock_discord,
+        "discord.ext": MagicMock(),
+        "discord.ext.commands": MagicMock(),
         "db": mock_db,
         "dotenv": MagicMock(),
         **cog_stubs,

@@ -63,6 +63,8 @@ for _cog in [
     sys.modules[_cog] = MagicMock()
 
 sys.modules["discord"] = _mock_discord
+sys.modules["discord.ext"] = MagicMock()
+sys.modules["discord.ext.commands"] = MagicMock()
 sys.modules["db"] = _mock_db
 sys.modules["dotenv"] = MagicMock()
 

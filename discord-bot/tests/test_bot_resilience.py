@@ -79,8 +79,13 @@ def _load_bot_module():
         ]
     }
 
+    mock_ext = MagicMock()
+    mock_ext_commands = MagicMock()
+
     overrides = {
         "discord": mock_discord,
+        "discord.ext": mock_ext,
+        "discord.ext.commands": mock_ext_commands,
         "db": mock_db,
         "dotenv": MagicMock(),
         **cog_stubs,
@@ -238,6 +243,8 @@ def test_clean_reconnect_after_crash():
                      "cogs.supportpanel","cogs.settings","cogs.presence","cogs.alerts"]:
             sys.modules[_cog] = MagicMock()
         sys.modules["discord"] = _mock_discord
+        sys.modules["discord.ext"] = MagicMock()
+        sys.modules["discord.ext.commands"] = MagicMock()
         sys.modules["db"] = MagicMock()
         sys.modules["dotenv"] = MagicMock()
 
