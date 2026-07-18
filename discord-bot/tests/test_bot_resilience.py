@@ -344,3 +344,182 @@ async def test_startup_alert_sends_first_start_then_restart(tmp_path, caplog):
     assert mock_channel.send.call_count == 2, (
         f"Expected two startup alerts (first start + restart), got {mock_channel.send.call_count}"
     )
+
+
+# ── Test 6: uptime webhook — "down" payload sends offline embed ────────────────
+
+@pytest.mark.asyncio
+async def test_uptime_webhook_down_sends_offline_embed():
+    """POST /alert/uptime with status=down sends an offline (red) embed to alert channels."""
+    from aiohttp import web
+
+    bot_module = _load_bot_module()
+
+    # Stub db.get_all_alert_channels to return one channel row
+    mock_channel = MagicMock()
+    mock_channel.send = AsyncMock()
+    mock_bot = MagicMock()
+    mock_bot.get_channel.return_value = mock_channel
+    bot_module.bot = mock_bot
+    bot_module.db.get_all_alert_channels = AsyncMock(
+        return_value=[{"alert_channel_id": 111}]
+    )
+
+    # Stub cogs.alerts so offline_embed is importable inside the handler
+    import sys
+    mock_offline_embed = MagicMock(return_value=MagicMock(name="offline_embed_obj"))
+    mock_recovery_embed = MagicMock(return_value=MagicMock(name="recovery_embed_obj"))
+    mock_alerts_mod = MagicMock()
+    mock_alerts_mod.offline_embed = mock_offline_embed
+    mock_alerts_mod.recovery_embed = mock_recovery_embed
+    sys.modules["cogs.alerts"] = mock_alerts_mod
+
+    port = _free_port()
+    app = web.Application()
+    app.router.add_post("/alert/uptime", bot_module.uptime_webhook_handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", port)
+    await site.start()
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"http://127.0.0.1:{port}/alert/uptime",
+                json={"status": "down", "reason": "No response from health check"},
+            ) as resp:
+                assert resp.status == 200, f"Expected 200, got {resp.status}"
+                body = await resp.json(content_type=None)
+
+        assert body["ok"] is True
+        assert body["status"] == "down"
+        assert body["channels_notified"] == 1
+
+        # offline_embed must have been called with the reason string
+        mock_offline_embed.assert_called_once_with("No response from health check")
+        # And that embed must have been sent to the channel
+        mock_channel.send.assert_awaited_once()
+        # recovery_embed must NOT have been called
+        mock_recovery_embed.assert_not_called()
+    finally:
+        await runner.cleanup()
+
+
+# ── Test 7: uptime webhook — "up" payload sends recovery embed ─────────────────
+
+@pytest.mark.asyncio
+async def test_uptime_webhook_up_sends_recovery_embed():
+    """POST /alert/uptime with status=up sends a green recovery embed to alert channels."""
+    from aiohttp import web
+
+    bot_module = _load_bot_module()
+
+    mock_channel = MagicMock()
+    mock_channel.send = AsyncMock()
+    mock_bot = MagicMock()
+    mock_bot.get_channel.return_value = mock_channel
+    bot_module.bot = mock_bot
+    bot_module.db.get_all_alert_channels = AsyncMock(
+        return_value=[{"alert_channel_id": 222}]
+    )
+
+    import sys
+    mock_offline_embed = MagicMock(return_value=MagicMock(name="offline_embed_obj"))
+    mock_recovery_embed = MagicMock(return_value=MagicMock(name="recovery_embed_obj"))
+    mock_alerts_mod = MagicMock()
+    mock_alerts_mod.offline_embed = mock_offline_embed
+    mock_alerts_mod.recovery_embed = mock_recovery_embed
+    sys.modules["cogs.alerts"] = mock_alerts_mod
+
+    port = _free_port()
+    app = web.Application()
+    app.router.add_post("/alert/uptime", bot_module.uptime_webhook_handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", port)
+    await site.start()
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"http://127.0.0.1:{port}/alert/uptime",
+                json={"status": "up", "reason": "Service recovered"},
+            ) as resp:
+                assert resp.status == 200, f"Expected 200, got {resp.status}"
+                body = await resp.json(content_type=None)
+
+        assert body["ok"] is True
+        assert body["status"] == "up"
+        assert body["channels_notified"] == 1
+
+        # recovery_embed must have been called
+        mock_recovery_embed.assert_called_once_with("Service recovered")
+        mock_channel.send.assert_awaited_once()
+        # offline_embed must NOT have been called
+        mock_offline_embed.assert_not_called()
+    finally:
+        await runner.cleanup()
+
+
+# ── Test 8: uptime webhook — secret validation returns 401 ────────────────────
+
+@pytest.mark.asyncio
+async def test_uptime_webhook_secret_validation():
+    """POST /alert/uptime returns 401 when X-Webhook-Secret is missing or wrong.
+
+    With WEBHOOK_SECRET set:
+      - No header → 401
+      - Wrong value → 401
+      - Correct value → 200
+    """
+    from aiohttp import web
+
+    bot_module = _load_bot_module()
+
+    mock_bot = MagicMock()
+    mock_bot.get_channel.return_value = None
+    bot_module.bot = mock_bot
+    bot_module.db.get_all_alert_channels = AsyncMock(return_value=[])
+
+    port = _free_port()
+    app = web.Application()
+    app.router.add_post("/alert/uptime", bot_module.uptime_webhook_handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", port)
+    await site.start()
+
+    correct_secret = "super-secret-token"
+    url = f"http://127.0.0.1:{port}/alert/uptime"
+    payload = {"status": "down", "reason": "Test"}
+
+    try:
+        with patch.dict(os.environ, {"WEBHOOK_SECRET": correct_secret}):
+            async with aiohttp.ClientSession() as session:
+                # Case 1: no secret header → 401
+                async with session.post(url, json=payload) as resp:
+                    assert resp.status == 401, (
+                        f"Expected 401 with no secret header, got {resp.status}"
+                    )
+                    body = await resp.json(content_type=None)
+                    assert "error" in body
+
+                # Case 2: wrong secret → 401
+                async with session.post(
+                    url, json=payload,
+                    headers={"X-Webhook-Secret": "wrong-secret"},
+                ) as resp:
+                    assert resp.status == 401, (
+                        f"Expected 401 with wrong secret, got {resp.status}"
+                    )
+
+                # Case 3: correct secret → 200
+                async with session.post(
+                    url, json=payload,
+                    headers={"X-Webhook-Secret": correct_secret},
+                ) as resp:
+                    assert resp.status == 200, (
+                        f"Expected 200 with correct secret, got {resp.status}"
+                    )
+    finally:
+        await runner.cleanup()

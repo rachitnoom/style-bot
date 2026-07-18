@@ -78,6 +78,7 @@ async def run_health_server() -> None:
     app = web.Application()
     app.router.add_get("/", health_handler)
     app.router.add_get("/health", health_handler)
+    app.router.add_post("/alert/uptime", uptime_webhook_handler)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", port)
@@ -175,6 +176,75 @@ async def on_application_command_error(ctx: discord.ApplicationContext, error: d
         await ctx.respond("Something went wrong running that command.", ephemeral=True)
     except discord.InteractionResponded:
         pass
+
+
+async def uptime_webhook_handler(request: web.Request) -> web.Response:
+    """Handle uptime-monitor webhook POSTs (e.g. BetterUptime / UptimeRobot).
+
+    Expected JSON body::
+
+        {"status": "down", "reason": "No response from health endpoint"}
+        {"status": "up",   "reason": "Service recovered"}
+
+    The optional ``X-Webhook-Secret`` header is validated against the
+    ``WEBHOOK_SECRET`` environment variable when that variable is set.
+    A missing or incorrect secret returns **401**.
+    """
+    webhook_secret = os.environ.get("WEBHOOK_SECRET")
+    if webhook_secret:
+        provided_secret = request.headers.get("X-Webhook-Secret", "")
+        if provided_secret != webhook_secret:
+            return web.Response(
+                text=json.dumps({"error": "Unauthorized"}),
+                content_type="application/json",
+                status=401,
+            )
+
+    try:
+        payload = await request.json()
+    except Exception:
+        return web.Response(
+            text=json.dumps({"error": "Invalid JSON body"}),
+            content_type="application/json",
+            status=400,
+        )
+
+    monitor_status = str(payload.get("status", "")).lower()  # "down" or "up"
+    reason = payload.get("reason", "Uptime monitor triggered")
+
+    from cogs.alerts import offline_embed, recovery_embed
+
+    try:
+        rows = await db.get_all_alert_channels()
+    except Exception:
+        rows = []
+
+    channels_notified = 0
+    for row in rows:
+        channel = bot.get_channel(row["alert_channel_id"])
+        if channel:
+            try:
+                if monitor_status == "down":
+                    await channel.send(embed=offline_embed(reason))
+                elif monitor_status == "up":
+                    await channel.send(embed=recovery_embed(reason))
+                channels_notified += 1
+            except Exception:
+                pass
+
+    logger.info(
+        "Uptime webhook received: status=%r reason=%r channels_notified=%d",
+        monitor_status, reason, channels_notified,
+    )
+    return web.Response(
+        text=json.dumps({
+            "ok": True,
+            "status": monitor_status,
+            "channels_notified": channels_notified,
+        }),
+        content_type="application/json",
+        status=200,
+    )
 
 
 async def _send_offline_alerts(reason: str = "บอทกำลังปิดตัว") -> None:

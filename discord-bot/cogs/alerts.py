@@ -36,6 +36,18 @@ def offline_embed(reason: str = "บอทกำลังปิดตัว") ->
     return embed
 
 
+def recovery_embed(reason: str = "Uptime monitor reports recovery") -> discord.Embed:
+    """Green embed posted when the uptime monitor reports the bot is back up."""
+    embed = discord.Embed(
+        title="🟢 บอทกลับมาออนไลน์",
+        description=reason,
+        color=0x2ECC71,
+        timestamp=discord.utils.utcnow(),
+    )
+    embed.set_footer(text="Style-Bot")
+    return embed
+
+
 class Alerts(commands.Cog):
     def __init__(self, bot: discord.Bot):
         self.bot = bot
