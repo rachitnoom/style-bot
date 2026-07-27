@@ -391,6 +391,21 @@ async def get_all_alert_channels() -> list[asyncpg.Record]:
 
 
 # ---------------------------------------------------------------------------
+# image_logs
+# ---------------------------------------------------------------------------
+
+async def log_ai_command(user_id: int, guild_id: int, command: str) -> None:
+    """Insert a row into image_logs for each AI image command invocation."""
+    async with pool().acquire() as conn:
+        await conn.execute(
+            "INSERT INTO image_logs (user_id, guild_id, command) VALUES ($1, $2, $3)",
+            user_id,
+            guild_id,
+            command,
+        )
+
+
+# ---------------------------------------------------------------------------
 # support_panel_settings
 # ---------------------------------------------------------------------------
 
