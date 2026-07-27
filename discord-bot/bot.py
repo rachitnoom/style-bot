@@ -104,6 +104,7 @@ COGS = [
     "cogs.presence",
     "cogs.alerts",
     "cogs.imagefilter",
+    "cogs.aistyle",
 ]
 
 
